@@ -4,7 +4,7 @@ This a working repository for my Bachelor thesis of Compuational linguistics.
 **Advisor:** Çağrı Çöltekin (@coltekin)
 
 
-**Idea:** I am working on creating an evaluation metric of specificity of the text. Specificity measures the amount of detail present in a text. This metric could be useful for tasks like automatic summarization, 
+**Idea:** I am working on creating an evaluation metric of specificity. Specificity measures the amount of detail present in a text. This metric could be useful for tasks like automatic summarization, 
 extracting specific information for RAG or active learning. Later I would like to compare my new metric to existing similar metrics and evaluate it on some practical application. For instance, I could take some pre-trained
 summarization model and fine-tune it on:
 
