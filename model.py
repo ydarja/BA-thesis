@@ -34,25 +34,29 @@ class SpecificityModel(nn.Module):
     def __init__(self):
         super(SpecificityModel, self).__init__()
         self.bert = BertModel.from_pretrained('bert-base-uncased')
-        self.pooling = nn.AdaptiveAvgPool1d(1)
         self.dense1 = nn.Linear(768, 128)
         self.dense2 = nn.Linear(128, 1)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(0.3)
 
-    def forward_once(self, input_ids, attention_mask):
-        outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
-        pooled_output = self.pooling(outputs.last_hidden_state.permute(0, 2, 1)).squeeze(-1)
-        x = self.relu(self.dense1(pooled_output))
-        x = self.dropout(x)
-        x = self.sigmoid(self.dense2(x))
-        return x
-
     def forward(self, input_ids1, attention_mask1, input_ids2, attention_mask2):
-        score1 = self.forward_once(input_ids1, attention_mask1)
-        score2 = self.forward_once(input_ids2, attention_mask2)
-        return score1, score2
+        outputs1 = self.bert(input_ids1, attention_mask=attention_mask1).last_hidden_state.mean(dim=1)
+        outputs2 = self.bert(input_ids2, attention_mask=attention_mask2).last_hidden_state.mean(dim=1)
+        
+        x1 = self.dense1(outputs1)
+        x1 = self.relu(x1)
+        x1 = self.dropout(x1)
+        logits1 = self.dense2(x1)
+        logits1 = self.sigmoid(logits1)
+        
+        x2 = self.dense1(outputs2)
+        x2 = self.relu(x2)
+        x2 = self.dropout(x2)
+        logits2 = self.dense2(x2)
+        logits2 = self.sigmoid(logits2)
+        
+        return logits1, logits2
 
 # Function to train the model
 def train(model, train_loader, criterion, optimizer):
@@ -112,8 +116,9 @@ def test_model(model, test_loader, device):
             attention_mask2 = batch['attention_mask2'].to(device)
             labels = batch['specific'].to(device).float()
 
-            outputs1 = model(input_ids1, attention_mask1).squeeze()
-            outputs2 = model(input_ids2, attention_mask2).squeeze()
+            outputs1, outputs2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
+            outputs1 = outputs1.squeeze()
+            outputs2 = outputs2.squeeze()
 
             outputs_diff = outputs1 - outputs2
             predictions = (outputs_diff > 0).float()
@@ -128,11 +133,11 @@ def test_model(model, test_loader, device):
     test_f1 = f1_score(all_labels, all_predictions)
     test_confusion_matrix = confusion_matrix(all_labels, all_predictions)
 
-    print(f"Test Accuracy: {test_accuracy}")
-    print(f"Test Precision: {test_precision}")
-    print(f"Test Recall: {test_recall}")
-    print(f"Test F1-Score: {test_f1}")
-    print(f"Test Confusion Matrix:\n {test_confusion_matrix}")
+    print("Test Accuracy: {}".format(round(test_accuracy, 6)))
+    print("Test Precision: {}".format(round(test_precision, 6)))
+    print("Test Recall: {}".format(round(test_recall, 6)))
+    print("Test F1-Score: {}".format(round(test_f1, 6)))
+    print("Test Confusion Matrix:\n {}".format(test_confusion_matrix))
 
 if __name__ == "__main__":
     # Define device
@@ -152,9 +157,9 @@ if __name__ == "__main__":
     val_dataset = SynsetPairDataset(val_data, tokenizer)
     test_dataset = SynsetPairDataset(test_data, tokenizer)
 
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=16)
-    test_loader = DataLoader(test_dataset, batch_size=16)
+    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=4)
+    test_loader = DataLoader(test_dataset, batch_size=4)
 
     # Train the model
     num_epochs = 5
