@@ -1,7 +1,7 @@
 This a working repository for my Bachelor thesis of Compuational linguistics.
 
-**Author:** Darja Jepifanova (@ydarja)
-**Advisor:** Çağrı Çöltekin (@coltekin)
+**Author:** Darja Jepifanova ([@ydarja](https://github.com/ydarja))
+**Advisor:** Çağrı Çöltekin ([@coltekin](https://github.com/coltekin))
 
 
 **Idea:** I am working on creating an evaluation metric of specificity. Specificity measures the amount of detail present in a text. This metric could be useful for tasks like automatic summarization, 
