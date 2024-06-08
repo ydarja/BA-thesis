@@ -20,3 +20,8 @@ Therfore, I create training data by picking pairs of synsets representing differ
 indicates that the first sentence is more specific, and label `1` show that the second sentence is more specific accordingly. Then I train a siamese neural network that encodes both sentences with BERT contextualized 
 embeddings and gets specificty score for both of them  using a non-linear transformation followed by a sigmoid function to get a value between 0 and 1. Then these scores are compared and the model outputs
 a binary value indicating which sentence is more specific.
+
+**Other resources:**
+ - [Literature review](https://docs.google.com/document/d/1wW2RFaqRNMYdH-o2QZU5np9fsbLkJIitnioF6VofpEE/edit)
+ - [Model evaluation](https://docs.google.com/document/d/1D959CRIQF49fzi6wlFjMwuK4wJY_lwe7yA5gJEMSWr0/edit)
+ - [Overleaf](https://ru.overleaf.com/read/vmhtyhwvxxnq#ee8e13)
