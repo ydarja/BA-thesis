@@ -29,7 +29,7 @@ class SynsetPairDataset(Dataset):
             'specific': torch.tensor(item['specific'], dtype=torch.float)
         }
 
-# Define the model
+# define the model
 class SpecificityModel(nn.Module):
     def __init__(self):
         super(SpecificityModel, self).__init__()
@@ -37,7 +37,6 @@ class SpecificityModel(nn.Module):
         self.dense1 = nn.Linear(768, 128)
         self.dense2 = nn.Linear(128, 1)
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(0.3)
 
     def forward(self, input_ids1, attention_mask1, input_ids2, attention_mask2):
@@ -48,17 +47,15 @@ class SpecificityModel(nn.Module):
         x1 = self.relu(x1)
         x1 = self.dropout(x1)
         logits1 = self.dense2(x1)
-        logits1 = self.sigmoid(logits1)
         
         x2 = self.dense1(outputs2)
         x2 = self.relu(x2)
         x2 = self.dropout(x2)
         logits2 = self.dense2(x2)
-        logits2 = self.sigmoid(logits2)
         
         return logits1, logits2
 
-# Function to train the model
+# function to train the model
 def train(model, train_loader, criterion, optimizer):
     model.train()
     total_loss = 0
@@ -71,7 +68,7 @@ def train(model, train_loader, criterion, optimizer):
         labels = batch['specific'].to(device)
 
         score1, score2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
-        predictions = torch.abs(score1 - score2).squeeze()
+        predictions = torch.sigmoid(score2 - score1).squeeze()
         loss = criterion(predictions, labels)
         loss.backward()
         optimizer.step()
@@ -80,7 +77,7 @@ def train(model, train_loader, criterion, optimizer):
 
     return total_loss / len(train_loader)
 
-# Function to evaluate the model
+# function to evaluate the model
 def evaluate(model, val_loader, criterion):
     model.eval()
     total_loss = 0
@@ -100,7 +97,7 @@ def evaluate(model, val_loader, criterion):
 
     return total_loss / len(val_loader)
 
-# Function to test the model
+# function to test the model
 def test_model(model, test_loader, device):
     model.eval()
     num_correct = 0
@@ -140,7 +137,7 @@ def test_model(model, test_loader, device):
     print("Test Confusion Matrix:\n {}".format(test_confusion_matrix))
 
 if __name__ == "__main__":
-    # Define device
+    # device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initialize tokenizer and model
@@ -149,7 +146,7 @@ if __name__ == "__main__":
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
 
-    # Load data and create data loaders
+    # load data and create data loaders
     file_path = 'data/synset_data.csv'
     train_data, val_data, test_data = load_data_from_csv(file_path)
 
@@ -161,7 +158,7 @@ if __name__ == "__main__":
     val_loader = DataLoader(val_dataset, batch_size=4)
     test_loader = DataLoader(test_dataset, batch_size=4)
 
-    # Train the model
+    # train the model
     num_epochs = 5
     for epoch in range(num_epochs):
         train_loss = train(model, train_loader, criterion, optimizer)
