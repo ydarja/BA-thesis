@@ -6,67 +6,93 @@ import csv
 import time
 import pandas as pd
 from sklearn.model_selection import train_test_split
+
 def get_depth(synset):
-    # Get the maximum depth for the synset
+    # get the maximum depth for the synset
     max_depth = max(len(path) for path in synset.hypernym_paths())
     return max_depth
 
-def sample_data(num_pairs):
+def get_descendants(synset, visited=None):
+    if visited is None:
+        visited = set()
 
+    descendants = set()
+    
+    visited.add(synset)  
+
+    for hyponym in synset.hyponyms():
+        if hyponym not in visited:  
+            descendants.add(hyponym)
+            descendants |= get_descendants(hyponym, visited)
+
+    return descendants
+
+def sample_data(num_pairs, filtered_synsets, id):
     random.seed(42)
     data = []
+    start_time = time.time()
 
     while len(data) < num_pairs:
-        synset1 = random.choice(list(wn.all_synsets()))
+        synset1 = random.choice(filtered_synsets)
 
-        # get depth of synset1
-        depth1 = len(synset1.hypernym_paths())
+        # Check if synset1 is a leaf node
+        if not synset1.hyponyms():
+            continue  # Skip leaf nodes
 
-        # get example sentence of synset1
+        descendants = get_descendants(synset1)
+
+        if not descendants:
+            continue
+
+        synset2 = random.choice(list(descendants))
+
+        # get depth of synset1 and synset2
+        depth1 = get_depth(synset1)
+        depth2 = get_depth(synset2)
+
+        # get example sentence of synset1 and synset2
         examples1 = synset1.examples()
-        if not examples1:
-            continue
-        sentence1 = examples1[0]
-
-        # choose a random hypernym from synset1
-        hypernyms = synset1.hypernyms()
-        if not hypernyms:
-            continue
-        hypernym1 = random.choice(hypernyms)
-
-        # get synsets that are deeper in the hierarchy than synset1 by comparing to common hypernym
-        deeper_synsets = [s for s in wn.all_synsets() if s != synset1 and s != hypernym1 and s.shortest_path_distance(hypernym1) is not None and s.shortest_path_distance(hypernym1) > 0 and s.shortest_path_distance(s) is not None and s.shortest_path_distance(s) > s.shortest_path_distance(synset1)]
-        if not deeper_synsets:
-            continue
-
-        synset2 = random.choice(deeper_synsets)
-
-        # get depth of synset2
-        depth2 = len(synset2.hypernym_paths())
-
-        # get example sentence of synset2
         examples2 = synset2.examples()
-        if not examples2:
+
+        if not examples1 or not examples2:
             continue
+
+        sentence1 = examples1[0] 
         sentence2 = examples2[0]
 
+        specific = 0 if depth1 > depth2 else 1 
+
         data.append({
-            'id': len(data) + 1,
+            'id': id + 1,
             'synset1': synset1,
             'depth1': depth1,
             'sentence1': sentence1,
             'synset2': synset2,
             'depth2': depth2,
-            'sentence2': sentence2
+            'sentence2': sentence2,
+            'specific': specific
         })
+        
+        id += 1
+
+        last_id = data[-1]["id"]
+        if last_id % 1000 == 0:
+            elapsed_time = time.time() - start_time
+            avg_time_per_instance = elapsed_time / last_id
+            remaining_time = avg_time_per_instance * (num_pairs - last_id)
+            print("Estimated remaining time: ", remaining_time)
 
     return data
 
 
-def filter_synsets():
-    # Filter out synsets without examples and not nouns (done once)
-    return [synset for synset in list(wn.all_synsets('n')) if synset.examples()]
+def filter_synsets_pos(pos, synsets):
+    # select synsets of specific pos tag
+    return [synset for synset in synsets if synset.pos() == pos]
 
+def filter_synsets_examples():
+    # filter out synsets without examples and not nouns (done once)
+    return [synset for synset in list(wn.all_synsets()) if synset.examples()]
+    
 
 def simple_sample_data(num_pairs, filtered_synsets):
     random.seed(42)
@@ -136,27 +162,29 @@ def load_data_from_csv(file_path, test_size=0.2, val_size=0.1):
 
 if __name__ == "__main__":
 
-    num_pairs = 8000
-    #synsets = filter_synsets()
-    # data = load_data_from_csv('data/synset_data.csv')
+    # Adjectives and adverbs don't have hypornym relations, so we don't include them
+    '''
+    n 8742
+    v 9691
+    a 4355
+    r 3192
+    '''
+    num_pairs_per_pos = {
+    'n': 8000,  
+    'v': 9000}
 
-    df = pd.read_csv('data/synset_data.csv')
-    s1 = list(df['sentence1'])
-    s2 = list(df['sentence2'])
-    s = s1+s2
-    total_length = sum(len(sentence) for sentence in s)
-    average_length = total_length / len(s)
-    print('Average sentence length:', average_length)
-    """
-    # Calculate the average sentence length
-    total_length = 0
-    sentence_count = 0
+    filtered = filter_synsets_examples()
+    print("Filtered synsets without examples")
+    data = []  
+    for pos, num_pairs in num_pairs_per_pos.items():
+        filtered_synsets = filter_synsets_pos(pos, filtered)
+        print(pos, len(filtered_synsets))
+        print("Processing: ", pos)
+        data += sample_data(num_pairs, filtered_synsets, id=len(data))
 
-    for _, entry in data.iterrows():
-        total_length += len(entry['sentence1'].split()) + len(entry['sentence2'].split())
-        sentence_count += 2
 
-    average_length = total_length / sentence_count
-    print('Average sentence length:', average_length)
-                
-    """  
+    save_data_to_csv(data, 'raw_synsets.csv')
+     
+    
+
+    
