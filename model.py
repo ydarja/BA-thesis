@@ -68,7 +68,7 @@ def train(model, train_loader, criterion, optimizer):
         labels = batch['specific'].to(device)
 
         score1, score2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
-        predictions = torch.sigmoid(score2 - score1).squeeze()
+        predictions = torch.sigmoid(score1 - score2).squeeze()
         loss = criterion(predictions, labels)
         loss.backward()
         optimizer.step()
@@ -90,7 +90,7 @@ def evaluate(model, val_loader, criterion):
             labels = batch['specific'].to(device)
 
             score1, score2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
-            predictions = torch.abs(score1 - score2).squeeze()
+            predictions = torch.sigmoid(score1 - score2).squeeze()
             loss = criterion(predictions, labels)
 
             total_loss += loss.item()
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
 
     # load data and create data loaders
-    file_path = 'data/synset_data.csv'
+    file_path = 'data/raw_synsets.csv'
     train_data, val_data, test_data = load_data_from_csv(file_path)
 
     train_dataset = SynsetPairDataset(train_data, tokenizer)
