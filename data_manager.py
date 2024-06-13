@@ -5,6 +5,7 @@ import random
 import csv
 import time
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 
 def get_depth(synset):
@@ -139,7 +140,33 @@ def simple_sample_data(num_pairs, filtered_synsets):
                 remaining_time = avg_time_per_instance * (num_pairs - last_id)
                 print("Estimated remaining time: ", remaining_time)
 
-    return data    
+    return data  
+
+def balance_data(file):
+
+    # Load the data
+    data = pd.read_csv(file)
+
+    
+    num_rows = len(data)
+    swap = num_rows // 2
+
+    # Randomly select indices for the rows to be swapped
+    np.random.seed(42)  # For reproducibility
+    indices_to_swap = np.random.choice(num_rows, swap, replace=False)
+
+    # Swap the columns for the selected rows
+    data.loc[indices_to_swap, ['synset1', 'synset2']] = data.loc[indices_to_swap, ['synset2', 'synset1']].values
+    data.loc[indices_to_swap, ['depth1', 'depth2']] = data.loc[indices_to_swap, ['depth2', 'depth1']].values
+    data.loc[indices_to_swap, ['sentence1', 'sentence2']] = data.loc[indices_to_swap, ['sentence2', 'sentence1']].values
+
+    # Update the specific label for the selected rows
+    data.loc[indices_to_swap, 'specific'] = 0
+
+    # Save the balanced DataFrame back to a CSV file
+    balanced_file_path = 'data/balanced_raw_synsets.csv'
+    data.to_csv(balanced_file_path, index=False)
+
 
 def save_data_to_csv(data, filename):
     with open(filename, mode='w', newline='') as file:
@@ -169,6 +196,7 @@ if __name__ == "__main__":
     a 4355
     r 3192
     '''
+    '''
     num_pairs_per_pos = {
     'n': 8000,  
     'v': 9000}
@@ -184,7 +212,8 @@ if __name__ == "__main__":
 
 
     save_data_to_csv(data, 'raw_synsets.csv')
-     
+    '''
+    balance_data('data/raw_synsets.csv')
     
 
     

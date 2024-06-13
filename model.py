@@ -147,7 +147,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
 
     # load data and create data loaders
-    file_path = 'data/raw_synsets.csv'
+    file_path = 'data/balanced_raw_synsets.csv'
     train_data, val_data, test_data = load_data_from_csv(file_path)
 
     train_dataset = SynsetPairDataset(train_data, tokenizer)
