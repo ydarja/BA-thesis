@@ -69,7 +69,7 @@ def train(model, train_loader, criterion, optimizer):
 
         score1, score2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
         predictions = torch.sigmoid(score1 - score2).squeeze()
-        loss = criterion(predictions, labels)
+        loss = criterion(predictions, labels.float())
         loss.backward()
         optimizer.step()
 
@@ -91,7 +91,7 @@ def evaluate(model, val_loader, criterion):
 
             score1, score2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
             predictions = torch.sigmoid(score1 - score2).squeeze()
-            loss = criterion(predictions, labels)
+            loss = criterion(predictions, labels.float())
 
             total_loss += loss.item()
 
@@ -113,21 +113,19 @@ def test_model(model, test_loader, device):
             attention_mask2 = batch['attention_mask2'].to(device)
             labels = batch['specific'].to(device).float()
 
-            outputs1, outputs2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
-            outputs1 = outputs1.squeeze()
-            outputs2 = outputs2.squeeze()
+            score1, score2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
+            outputs_diff = torch.sigmoid(score1 - score2).squeeze()
+            predictions = (outputs_diff > 0.5).float()  # Threshold to convert to binary predictions
 
-            outputs_diff = outputs1 - outputs2
-            predictions = (outputs_diff > 0).float()
             num_correct += (predictions == labels).sum().item()
             num_total += len(labels)
             all_labels.extend(labels.cpu().numpy())
             all_predictions.extend(predictions.cpu().numpy())
 
     test_accuracy = num_correct / num_total
-    test_precision = precision_score(all_labels, all_predictions)
-    test_recall = recall_score(all_labels, all_predictions)
-    test_f1 = f1_score(all_labels, all_predictions)
+    test_precision = precision_score(all_labels, all_predictions, zero_division=0)
+    test_recall = recall_score(all_labels, all_predictions, zero_division=0)
+    test_f1 = f1_score(all_labels, all_predictions, zero_division=0)
     test_confusion_matrix = confusion_matrix(all_labels, all_predictions)
 
     print("Test Accuracy: {}".format(round(test_accuracy, 6)))
@@ -135,6 +133,40 @@ def test_model(model, test_loader, device):
     print("Test Recall: {}".format(round(test_recall, 6)))
     print("Test F1-Score: {}".format(round(test_f1, 6)))
     print("Test Confusion Matrix:\n {}".format(test_confusion_matrix))
+
+def save_model(model, optimizer, epoch, path):
+    """
+    Save the PyTorch model and optimizer state.
+
+    Parameters:
+    - model: the model to be saved
+    - optimizer: the optimizer whose state will be saved
+    - epoch: the epoch number to save
+    - path: the path where the model will be saved
+    """
+    torch.save({
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict()
+    }, path)
+    print(f"Model saved to {path}")
+
+def load_model(model, optimizer, path, device):
+    """
+    Load the PyTorch model and optimizer state.
+
+    Parameters:
+    - model: the model to be loaded
+    - optimizer: the optimizer whose state will be loaded
+    - path: the path from where the model will be loaded
+    - device: the device to map the model to (e.g., 'cpu' or 'cuda')
+    """
+    checkpoint = torch.load(path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    epoch = checkpoint['epoch']
+    print(f"Model loaded from {path}, epoch {epoch}")
+    return model, optimizer, epoch
 
 if __name__ == "__main__":
     # device
@@ -165,5 +197,8 @@ if __name__ == "__main__":
         val_loss = evaluate(model, val_loader, criterion)
         print("Epoch ", epoch + 1, "/", num_epochs, " , Train Loss: ", train_loss, " Validation Loss: ", val_loss)
 
+        # Save the model after each epoch
+        save_model(model, optimizer, epoch, model_save_path)
+        
     # Test the model
     test_model(model, test_loader, device)
