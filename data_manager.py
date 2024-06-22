@@ -142,12 +142,10 @@ def simple_sample_data(num_pairs, filtered_synsets):
 
     return data  
 
-def balance_data(file):
-
+def balance_data(file, balanced_file):
     # Load the data
     data = pd.read_csv(file)
 
-    
     num_rows = len(data)
     swap = num_rows // 2
 
@@ -163,9 +161,9 @@ def balance_data(file):
     # Update the specific label for the selected rows
     data.loc[indices_to_swap, 'specific'] = 0
 
-    # Save the balanced DataFrame back to a CSV file
-    balanced_file_path = 'data/balanced_raw_synsets.csv'
-    data.to_csv(balanced_file_path, index=False)
+    data.to_csv(balanced_file)
+
+    return data
 
 
 def save_data_to_csv(data, filename):
@@ -178,15 +176,24 @@ def save_data_to_csv(data, filename):
 def load_data_from_csv(file_path, test_size=0.2, val_size=0.1):
     # Load the data
     data = pd.read_csv(file_path)
+     
+    # Split the data into train and test sets with stratification
+    train_data, test_data = train_test_split(data, test_size=test_size, random_state=42, stratify=data['specific'])
     
-    # Split the data into train and test sets
-    train_data, test_data = train_test_split(data, test_size=test_size, random_state=42)
-    
-    # Further split the training data into training and validation sets
-    train_data, val_data = train_test_split(train_data, test_size=val_size, random_state=42)
+    # Further split the training data into training and validation sets with stratification
+    train_data, val_data = train_test_split(train_data, test_size=val_size, random_state=18, stratify=train_data['specific'])
     
     return train_data, val_data, test_data
 
+# Inspect the dataset
+def inspect_dataset(data):
+    print("First 5 rows of the dataset:")
+    print(data.head())
+    print("\nDistribution of 'specific' column:")
+    print(data['specific'].value_counts())
+
+
+    
 if __name__ == "__main__":
 
     # Adjectives and adverbs don't have hypornym relations, so we don't include them
@@ -213,7 +220,23 @@ if __name__ == "__main__":
 
     save_data_to_csv(data, 'raw_synsets.csv')
     '''
-    balance_data('data/raw_synsets.csv')
     
+    # File path to the raw dataset
+    raw_file_path = 'data\\raw_synsets.csv'
+    balanced = 'data/balanced_raw_synsets.csv'
+    
+    # Balance the dataset
+    balance_data(raw_file_path, balanced )
+    
+    # Load balanced data and create train, validation, and test splits
+    train_data, val_data, test_data = load_data_from_csv(balanced)
+    
+    # Inspect the splits
+    print("Train Data:")
+    inspect_dataset(train_data)
+    print("Validation Data:")
+    inspect_dataset(val_data)
+    print("Test Data:")
+    inspect_dataset(test_data)
 
     
