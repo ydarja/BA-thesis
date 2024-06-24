@@ -25,3 +25,7 @@ a binary value indicating which sentence is more specific.
  - [Literature review](https://docs.google.com/document/d/1wW2RFaqRNMYdH-o2QZU5np9fsbLkJIitnioF6VofpEE/edit)
  - [Model evaluation](https://docs.google.com/document/d/1D959CRIQF49fzi6wlFjMwuK4wJY_lwe7yA5gJEMSWr0/edit)
  - [Overleaf](https://ru.overleaf.com/read/vmhtyhwvxxnq#ee8e13)
+
+**TO DO:**
+- [] try to train on sentences with the same context
+- [] investigate the obtained specificity scores, e.g. correlation with depth and other metrics 
