@@ -162,7 +162,7 @@ def load_model(model, optimizer, path, device):
     - device: the device to map the model to (e.g., 'cpu' or 'cuda')
     """
     checkpoint = torch.load(path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint['model_state_dict'], strict=False)  # ignore unexpected keys
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     epoch = checkpoint['epoch']
     print(f"Model loaded from {path}, epoch {epoch}")
@@ -178,6 +178,7 @@ if __name__ == "__main__":
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
 
+    
     # load data and create data loaders
     file_path = 'data/balanced_raw_synsets.csv'
     train_data, val_data, test_data = load_data_from_csv(file_path)
@@ -190,6 +191,7 @@ if __name__ == "__main__":
     val_loader = DataLoader(val_dataset, batch_size=4)
     test_loader = DataLoader(test_dataset, batch_size=4)
 
+    '''
     # train the model
     num_epochs = 5
     for epoch in range(num_epochs):
@@ -198,7 +200,14 @@ if __name__ == "__main__":
         print("Epoch ", epoch + 1, "/", num_epochs, " , Train Loss: ", train_loss, " Validation Loss: ", val_loss)
 
         # Save the model after each epoch
-        save_model(model, optimizer, epoch, model_save_path)
-        
+        save_model(model, optimizer, epoch, 'Models/model1')
+    '''
+
+    # Initialize the model and optimizer
+    model = SpecificityModel().to(device)
+    optimizer = torch.optim.Adam(model.parameters())
+
+    # Load the saved model
+    model, optimizer, epoch = load_model(model, optimizer, 'Models/model1', device)
     # Test the model
     test_model(model, test_loader, device)
