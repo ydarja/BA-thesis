@@ -28,4 +28,5 @@ a binary value indicating which sentence is more specific.
 
 **TO DO:**
 - [ ] try to train on sentences with the same context
-- [ ] investigate the obtained specificity scores, e.g. correlation with depth and other metrics 
+- [ ] investigate the obtained specificity scores, e.g. correlation with depth and other metrics
+- [ ] create an example of the survey to obtain human judgements 
