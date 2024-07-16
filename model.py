@@ -90,7 +90,7 @@ def evaluate(model, val_loader, criterion):
             labels = batch['specific'].to(device)
 
             score1, score2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
-            predictions = torch.sigmoid(score1 - score2).squeeze()
+            predictions = torch.sigmoid(score2 - score1).squeeze()
             loss = criterion(predictions, labels.float())
 
             total_loss += loss.item()
@@ -114,7 +114,7 @@ def test_model(model, test_loader, device):
             labels = batch['specific'].to(device).float()
 
             score1, score2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
-            outputs_diff = torch.sigmoid(score1 - score2).squeeze()
+            outputs_diff = torch.sigmoid(score2 - score1).squeeze()
             predictions = (outputs_diff > 0.5).float()  # Threshold to convert to binary predictions
 
             num_correct += (predictions == labels).sum().item()
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     val_loader = DataLoader(val_dataset, batch_size=4)
     test_loader = DataLoader(test_dataset, batch_size=4)
 
-    '''
+    
     # train the model
     num_epochs = 5
     for epoch in range(num_epochs):
@@ -200,14 +200,13 @@ if __name__ == "__main__":
         print("Epoch ", epoch + 1, "/", num_epochs, " , Train Loss: ", train_loss, " Validation Loss: ", val_loss)
 
         # Save the model after each epoch
-        save_model(model, optimizer, epoch, 'Models/model1')
-    '''
-
+        save_model(model, optimizer, epoch, 'models/model2')
+    
     # Initialize the model and optimizer
     model = SpecificityModel().to(device)
     optimizer = torch.optim.Adam(model.parameters())
 
     # Load the saved model
-    model, optimizer, epoch = load_model(model, optimizer, 'Models/model1', device)
+    model, optimizer, epoch = load_model(model, optimizer, 'models/model2', device)
     # Test the model
     test_model(model, test_loader, device)
