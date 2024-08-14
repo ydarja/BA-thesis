@@ -88,7 +88,7 @@ def get_specificity_scores(test_df):
     return specificity_scores, true_depths, test_sentences
 
 def analyze(test_df):
-    specificity_scores, true_depths, test_sentences_df = get_specificity_scores(test_df) 
+    specificity_scores, true_depths, test_sentences = get_specificity_scores(test_df) 
     # Calculate correlations
     pearson_corr, _ = pearsonr(specificity_scores, true_depths)
     spearman_corr, _ = spearmanr(specificity_scores, true_depths)
@@ -129,11 +129,28 @@ def analyze(test_df):
     plt.grid(True)
     plt.savefig('plots/regression_plot.png', dpi=300)
 
+    # Boxplots by depth plot
 
-    # Comparison with Other Specificity Library
-    other_specificity_scores = mts.Specificity(test_sentences)
-    correlation_with_other = pearsonr(specificity_scores, other_specificity_scores)
-    print(f'Correlation with other library’s specificity scores: {correlation_with_other}')
+    specific_depths = [2,6,10,14]
+
+    for depth in specific_depths:
+        mask = (true_depths==depth)
+        filtered_scores = specificity_scores[mask]
+        filtered_depths = true_depths[mask]
+        plt.figure(figsize=(10, 6))
+        plt.boxplot(filtered_scores, vert=False)
+        plt.xlabel('Specificity Scores', fontsize=12)
+        plt.ylabel('True Depths', fontsize=12)
+        plt.title(f'Specificity Scores at WordNet Depth {depth}', fontsize=14)
+        plt.grid(True)
+        plt.savefig(f'plots/boxplot_depth{depth}.png', dpi=300)
+        plt.show()
+
+
+    # Comparison with OtherThanSentiments
+    #other_specificity_scores = mts.Specificity(test_sentences)
+    #correlation_with_other = pearsonr(specificity_scores, other_specificity_scores)
+    #print(f'Correlation with other library\'s specificity scores: {correlation_with_other}')
 
 if __name__ == "__main__":
     _, _, test_df = load_data_from_csv('data/balanced_raw_synsets.csv')

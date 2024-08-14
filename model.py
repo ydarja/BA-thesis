@@ -68,7 +68,7 @@ def train(model, train_loader, criterion, optimizer):
         labels = batch['specific'].to(device)
 
         score1, score2 = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
-        predictions = torch.sigmoid(score1 - score2).squeeze()
+        predictions = torch.sigmoid(score2 - score1).squeeze()
         loss = criterion(predictions, labels.float())
         loss.backward()
         optimizer.step()
@@ -200,13 +200,13 @@ if __name__ == "__main__":
         print("Epoch ", epoch + 1, "/", num_epochs, " , Train Loss: ", train_loss, " Validation Loss: ", val_loss)
 
         # Save the model after each epoch
-        save_model(model, optimizer, epoch, 'models/model2')
+        save_model(model, optimizer, epoch+1, 'models/model3')
     
     # Initialize the model and optimizer
     model = SpecificityModel().to(device)
     optimizer = torch.optim.Adam(model.parameters())
 
     # Load the saved model
-    model, optimizer, epoch = load_model(model, optimizer, 'models/model2', device)
+    model, optimizer, epoch = load_model(model, optimizer, 'models/model3', device)
     # Test the model
     test_model(model, test_loader, device)
