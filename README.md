@@ -29,6 +29,9 @@ a binary value indicating which sentence is more specific.
 **TO DO:**
 - [ ] train on sentences with the same context (optional)
 - [X] investigate the obtained specificity scores, e.g. correlation with depth and other metrics
-- [ ] create data for human evaluation based on the WikiHow dataset and LLM
+- [X] create data for human evaluation based on the WikiHow dataset and LLM
 - [ ] create and distribute a survey
-- [ ] draft of the intro section
+- [ ] analyze the human evaluation part
+- [X] draft of the intro section
+- [ ] draft of the literature section
+
