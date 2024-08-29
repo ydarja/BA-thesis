@@ -92,6 +92,38 @@ def process_csv(input_csv, model_path='models/model3', max_length=128):
     # Save the updated DataFrame back to CSV
     df.to_csv(input_csv, index=False)
 
+def remove_intro_sentences(summary):
+    """
+    Removes the first sentence of a summary if it matches common introductory patterns.
+    
+    Parameters:
+        text (str): The summary text from which the first sentence should be removed if it matches the pattern.
+        
+    Returns:
+        str: The modified summary without the introductory sentence if it matches the pattern.
+    """
+    pattern = r"^Here.*?:\s*"
+    if re.match(pattern, summary.strip(), re.IGNORECASE):
+        summary = re.sub(pattern, '', summary.strip(), count=1)
+    return summary
+
+def process_summaries(input_csv):
+    """
+    Processes the CSV file to remove introductory sentences from summary_a and summary_b if they match specific patterns.
+    
+    Parameters:
+        input_csv (str): Path to the CSV file containing the summaries.
+    """
+    df = pd.read_csv(input_csv)
+
+    # Apply the function to remove intro sentences from both summary_a and summary_b
+    df['summary_a'] = df['summary_a'].apply(remove_intro_sentences)
+    df['summary_b'] = df['summary_b'].apply(remove_intro_sentences)
+
+    # Save the updated DataFrame back to the CSV file
+    df.to_csv(input_csv, index=False)
+    print("Introductory sentences removed where applicable.")
+
 def analyze_scores(csv_file):
 
     # Load the CSV file
@@ -126,7 +158,7 @@ def analyze_scores(csv_file):
     plt.ylabel('Count')  # Or use 'Frequency'
     plt.legend()
 
-    plt.savefig('plots/distribution_ab3.png', dpi=300)  
+    plt.savefig('plots/distribution_ab5.png', dpi=300)  
     plt.close()
 
 
@@ -138,7 +170,7 @@ def analyze_scores(csv_file):
     plt.ylabel('score_b')
     plt.title('Paired Specificity Scores')
 
-    plt.savefig('plots/paired_ab3.png', dpi=300)  
+    plt.savefig('plots/paired_ab5.png', dpi=300)  
     plt.close()
 
     # Paired t-test
@@ -177,7 +209,7 @@ def plot_difference_density(input_csv):
     plt.legend()
     plt.grid(True)
     
-    plt.savefig('plots/difference_density3.png', dpi=300)
+    plt.savefig('plots/difference_density5.png', dpi=300)
     plt.close()
 
 
@@ -207,7 +239,10 @@ def inspect_outliers(input_csv):
 
 
 def wtf(input_csv):
-    # Load the CSV file
+    '''
+    A function to inspect the top 5 cases
+    where score_b is bigger than score_a
+    '''
     df = pd.read_csv(input_csv)
     pd.set_option('display.max_columns', None) 
     
@@ -225,17 +260,12 @@ def wtf(input_csv):
     return df_higher_b_sorted.head(5).iloc[:, 0].tolist()
 
 if __name__ == "__main__":
-    file1 = 'new2/generated_summaries_llama3.1.csv'
-    file2 = 'new2/generated_summaries_llama3.1_2.csv'
-    file3 = 'new2/generated_summaries_llama3.1_3.csv'
+    file1 = 'human_evaluation/generated_summaries_llama3.1.csv'
+    file2 = 'human_evaluation/generated_summaries_llama3.1_2.csv'
+    file3 = 'human_evaluation/generated_summaries_llama3.1_3.csv'
+    file4 = 'human_evaluation/generated_summaries_llama3.1_4.csv'
+    file5 = 'human_evaluation/generated_summaries_gemma2.csv'
 
-    # model = load_model('models\model3')
-    #process_csv(file1)
-    #process_csv(file2)
-    #process_csv(file3)
-    res1 = set(wtf(file1))
-    res2 = set(wtf(file2))
-    res3 = set(wtf(file3))
-    print(res1)
-    print(res2)
-    print(res3)
+    # process_csv(file5)
+    # analyze_scores(file5)
+    plot_difference_density(file5)
