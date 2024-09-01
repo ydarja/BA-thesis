@@ -27,7 +27,7 @@ a binary value indicating which sentence is more specific.
  - [Overleaf](https://ru.overleaf.com/read/vmhtyhwvxxnq#ee8e13)
 
 **TO DO:**
-- [ ] train on sentences with the same context (optional)
+- [X] train on sentences with the same context (optional)
 - [X] investigate the obtained specificity scores, e.g. correlation with depth and other metrics
 - [X] create data for human evaluation based on the WikiHow dataset and LLM
 - [ ] create and distribute a survey
