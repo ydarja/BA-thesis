@@ -1,37 +1,32 @@
-This a working repository for my Bachelor thesis of Compuational linguistics.
+# Creating and Evaluating a New Specificity Metric based on WordNet
 
 **Author:** Darja Jepifanova ([@ydarja](https://github.com/ydarja))
 **Advisor:** Çağrı Çöltekin ([@coltekin](https://github.com/coltekin))
 
+# Project Overview:
+This repository contains the code, data, and resources for my  bachelor thesis 
+on developing and evaluatinga new specificity metric based on WordNet. 
 
-**Idea:** I am working on creating an evaluation metric of specificity. Specificity measures the amount of detail present in a text. This metric could be useful for tasks like automatic summarization, 
-extracting specific information for RAG or active learning. Later I would like to compare my new metric to existing similar metrics and evaluate it on some practical application. For instance, I could take some pre-trained
-summarization model and fine-tune it on:
+**Abstract:**
+In computational linguistics, specificity quantifies how much detail is engaged in
+text. It is useful in many NLP applications such as summarization and information
+extraction. It can also be used as a text quality metric, which can provide a more
+transparent evaluation of machine-generated text. Yet to date, expert-annotated
+data for sentence-level specificity are scarce and confined to the news or social
+media genre. In addition, systems that predict sentence specificity are classifiers
+trained to produce binary labels (general or specific).
+In this thesis, I introduce a new specificity metric based on WordNet, which posits
+that lower synsets in the semantic hierarchy represent more specific concepts.
+Based on this principle, I trained a Siamese network to distinguish between specific
+and general sentences based on the depth of the corresponding synsets. The
+evaluation of the resulting continuous specificity scores involved statistical analysis,
+comparisons with existing metrics, and human evaluations. The analysis revealed
+a Pearson correlation of 0.38 with a Twitter-based dataset containing annotated
+specificity, suggesting promising outcomes. However, human evaluations resulted
+in a correlation of just 0.19 and low inter-annotator agreement, highlighting the
+metric’s limitations. Despite these challenges, this study provides a foundation for
+future enhancements and applications in natural language generation, aiming to
+improve the quality and precision of machine-generated texts.
 
-1) randomly picked reference summaries
-2) summaries based on my metric
-3) summaries based on other metrics
-
-Then we could compare performance of these different versions and conclude if this new metric is of any use...
-
-**Model:**  So how am I going to create this specificity metric? For my training data I am using WordNet lexical database that captures semantic relations between words. Words 
-are organized into hierarchies, defined by hypernym or `IS A` relationships. We assume that higher synsets represent more abstract meaning, when lower concepts and leafs tend to be more specific.
-Therfore, I create training data by picking pairs of synsets representing different level of specificity (located on different depth in the hierarchy) and extracting their example sentences. Label `0` 
-indicates that the first sentence is more specific, and label `1` show that the second sentence is more specific accordingly. Then I train a siamese neural network that encodes both sentences with BERT contextualized 
-embeddings and gets specificty score for both of them  using a non-linear transformation followed by a sigmoid function to get a value between 0 and 1. Then these scores are compared and the model outputs
-a binary value indicating which sentence is more specific.
-
-**Other resources:**
- - [Literature review](https://docs.google.com/document/d/1wW2RFaqRNMYdH-o2QZU5np9fsbLkJIitnioF6VofpEE/edit)
- - [Model evaluation](https://docs.google.com/document/d/1D959CRIQF49fzi6wlFjMwuK4wJY_lwe7yA5gJEMSWr0/edit)
- - [Overleaf](https://ru.overleaf.com/read/vmhtyhwvxxnq#ee8e13)
-
-**TO DO:**
-- [X] train on sentences with the same context (optional)
-- [X] investigate the obtained specificity scores, e.g. correlation with depth and other metrics
-- [X] create data for human evaluation based on the WikiHow dataset and LLM
-- [ ] create and distribute a survey
-- [ ] analyze the human evaluation part
-- [X] draft of the intro section
-- [ ] draft of the literature section
+*For questions or comments, feel free to contact me via email: ydarja@gmail.com*
 
