@@ -3,11 +3,11 @@
 **Author:** Darja Jepifanova ([@ydarja](https://github.com/ydarja))
 **Advisor:** Çağrı Çöltekin ([@coltekin](https://github.com/coltekin))
 
-# Project Overview:
+**Project Overview:**  
 This repository contains the code, data, and resources for my  bachelor thesis 
 on developing and evaluatinga new specificity metric based on WordNet. 
 
-**Abstract:**
+**Abstract:**  
 In computational linguistics, specificity quantifies how much detail is engaged in
 text. It is useful in many NLP applications such as summarization and information
 extraction. It can also be used as a text quality metric, which can provide a more
