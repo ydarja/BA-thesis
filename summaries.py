@@ -18,198 +18,203 @@ def tokenize_sentences(sentences, tokenizer, max_length=128):
 def get_specificity_scores(sentences, model, tokenizer, max_length=128):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Tokenize sentences
+    # tokenize sentences
     input_ids, attention_masks = tokenize_sentences(sentences, tokenizer, max_length)
     input_ids = input_ids.to(device)
     attention_masks = attention_masks.to(device)
 
     with torch.no_grad():
-        # We need to pass each sentence pair to the model
         logits = []
         for i in range(len(sentences)):
-            input_ids1 = input_ids[i].unsqueeze(0)  # Add batch dimension
-            attention_mask1 = attention_masks[i].unsqueeze(0)  # Add batch dimension
-            # Use the same sentence for both sides for now
+            input_ids1 = input_ids[i].unsqueeze(0)  
+            attention_mask1 = attention_masks[i].unsqueeze(0)  
             logits1, _ = model(input_ids1=input_ids1, attention_mask1=attention_mask1,
                                input_ids2=input_ids1, attention_mask2=attention_mask1)
             logits.append(logits1.squeeze().cpu().numpy())
 
-    logits = np.array(logits)
-
-    # Normalize the scores to a range of (0,1)
-    scaler = MinMaxScaler()
-    specificity_scores = scaler.fit_transform(logits.reshape(-1, 1)).flatten()
+    specificity_scores = np.array(logits).flatten()
 
     return specificity_scores
 
-def process_csv(input_csv, model_path='models/model4', max_length=128):
-    # Load the CSV file
-    df = pd.read_csv(input_csv)
+def compute_specificity_measures(scores):
+    """
+    Computes different statistical measures from the list of specificity scores.
+    """
+    if len(scores) == 0:
+        return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan  # Handle empty lists
 
-    # Initialize tokenizer
+    avg_score = np.mean(scores)
+    min_score = np.min(scores)
+    max_score = np.max(scores)
+    median_score = np.median(scores)
+    range_score = np.max(scores) - np.min(scores)
+    std_dev = np.std(scores)
+
+    return avg_score, min_score, max_score, median_score, range_score, std_dev
+
+def process_csv(input_csv, output_csv, model_path='models/model5', max_length=128):
+
+    df = pd.read_csv(input_csv)
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    # Load the model
+    # load the model
     model = SpecificityModel().to(device)
     optimizer = torch.optim.Adam(model.parameters())
     model, _, _ = load_model(model, optimizer, model_path, device)
     model.eval()
-    
-    # Initialize columns for specificity scores
-    df['score_a'] = np.nan
-    df['score_b'] = np.nan
 
+    all_scores = []
+    # collect raw specificity scores for each summary
     for idx, row in df.iterrows():
         summary_a = row['summary_a']
         summary_b = row['summary_b']
         
-        # Split summaries into sentences
+        # split summaries into sentences
         sentences_a = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', summary_a)
         sentences_b = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', summary_b)
         
-        # Calculate specificity scores
+        # calculate raw specificity scores
         scores_a = get_specificity_scores(sentences_a, model, tokenizer, max_length)
         scores_b = get_specificity_scores(sentences_b, model, tokenizer, max_length)
-        
-        # Calculate average specificity scores
-        avg_score_a = np.mean(scores_a)
-        avg_score_b = np.mean(scores_b)
-        
-        df.at[idx, 'score_a'] = round(avg_score_a, 2)
-        df.at[idx, 'score_b'] = round(avg_score_b, 2)
-    
-    # Reorder columns
-    df = df[['id', 'summary_a', 'score_a', 'summary_b', 'score_b']]
-    
-    # Save the updated DataFrame back to CSV
-    df.to_csv(input_csv, index=False)
 
+        all_scores.extend(scores_a)
+        all_scores.extend(scores_b)
     
-    # Reorder columns
-    df = df[['id', 'summary_a', 'score_a', 'summary_b', 'score_b']]
+    # normalize all collected scores globally
+    all_scores = np.array(all_scores).reshape(-1, 1)
+    scaler = MinMaxScaler()
+    normalized_scores = scaler.fit_transform(all_scores).flatten()
+
+
+    score_idx = 0
+
+    #  update the dataframe with normalized scores 
+    for idx, row in df.iterrows():
+        summary_a = row['summary_a']
+        summary_b = row['summary_b']
+        
+        sentences_a = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', summary_a)
+        sentences_b = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', summary_b)
+
+        # get the corresponding normalized scores for summary_a and summary_b
+        scores_a = normalized_scores[score_idx:score_idx + len(sentences_a)]
+        score_idx += len(sentences_a)
+        scores_b = normalized_scores[score_idx:score_idx + len(sentences_b)]
+        score_idx += len(sentences_b)
+        
+        # try out different measures to use as specificity score for a text
+        avg_score_a, min_score_a, max_score_a, median_score_a, range_score_a, std_dev_a = compute_specificity_measures(scores_a)
+        avg_score_b, min_score_b, max_score_b, median_score_b, range_score_b, std_dev_b = compute_specificity_measures(scores_b)
+        
+        # add the measures to the dataframe
+        df.at[idx, 'avg_score_a'] = round(avg_score_a, 2)
+        df.at[idx, 'min_score_a'] = round(min_score_a, 2)
+        df.at[idx, 'max_score_a'] = round(max_score_a, 2)
+        df.at[idx, 'median_score_a'] = round(median_score_a, 2)
+        df.at[idx, 'range_score_a'] = round(range_score_a, 2)
+        df.at[idx, 'std_dev_a'] = round(std_dev_a, 2)
+        
+        df.at[idx, 'avg_score_b'] = round(avg_score_b, 2)
+        df.at[idx, 'min_score_b'] = round(min_score_b, 2)
+        df.at[idx, 'max_score_b'] = round(max_score_b, 2)
+        df.at[idx, 'median_score_b'] = round(median_score_b, 2)
+        df.at[idx, 'range_score_b'] = round(range_score_b, 2)
+        df.at[idx, 'std_dev_b'] = round(std_dev_b, 2)
     
-    # Save the updated DataFrame back to CSV
-    df.to_csv(input_csv, index=False)
+    # reorder columns
+    df = df[['id', 'summary_a', 'avg_score_a', 'min_score_a', 'max_score_a', 'median_score_a', 'range_score_a', 'std_dev_a',
+             'summary_b', 'avg_score_b', 'min_score_b', 'max_score_b', 'median_score_b', 'range_score_b', 'std_dev_b']]
+    
+    df.to_csv(output_csv, index=False)
+
 
 def remove_intro_sentences(summary):
     """
-    Removes the first sentence of a summary if it matches common introductory patterns.
-    
-    Parameters:
-        text (str): The summary text from which the first sentence should be removed if it matches the pattern.
-        
-    Returns:
-        str: The modified summary without the introductory sentence if it matches the pattern.
+    Removes the first sentence of a summary if it matches common  AI introductory patterns.
     """
     pattern = r"^Here.*?:\s*"
     if re.match(pattern, summary.strip(), re.IGNORECASE):
         summary = re.sub(pattern, '', summary.strip(), count=1)
     return summary
 
-def process_summaries(input_csv):
+def process_intro_summaries(input_csv):
     """
-    Processes the CSV file to remove introductory sentences from summary_a and summary_b if they match specific patterns.
-    
-    Parameters:
-        input_csv (str): Path to the CSV file containing the summaries.
+    Processes the CSV file to remove introductory sentences from summary_a and summary_b.
     """
     df = pd.read_csv(input_csv)
-
-    # Apply the function to remove intro sentences from both summary_a and summary_b
     df['summary_a'] = df['summary_a'].apply(remove_intro_sentences)
     df['summary_b'] = df['summary_b'].apply(remove_intro_sentences)
-
-    # Save the updated DataFrame back to the CSV file
     df.to_csv(input_csv, index=False)
-    print("Introductory sentences removed where applicable.")
 
-def analyze_scores(csv_file):
 
-    # Load the CSV file
+def analyze_scores(csv_file, measure="avg_score"):
+    """
+    Analyzes specificity scores for two summaries and compares them based on different measures.
+    """
     df = pd.read_csv(csv_file)
 
-    avg_score_a = df['score_a'].mean()
-    avg_score_b = df['score_b'].mean()
+    #  mean of the selected measure for both scores a and b
+    avg_score_a = df[measure + "_a"].mean()
+    avg_score_b = df[measure + "_b"].mean()
 
-    # Check if score_a is always greater than score_b
-    df['score_a_greater'] = df['score_a'] > df['score_b']
+    # check if score_a is always greater than score_b
+    df['score_a_greater'] = df[measure + "_a"] > df[measure + "_b"]
     
     always_greater = df['score_a_greater'].all()
     percentage_greater = df['score_a_greater'].mean() * 100
 
-    # Print summary
-    print(f"Average score_a: {avg_score_a:.2f}")
-    print(f"Average score_b: {avg_score_b:.2f}")
-    print(f"Is score_a always greater than score_b? {'Yes' if always_greater else 'No'}")
-    print(f"Percentage of rows where score_a > score_b: {percentage_greater:.2f}%")
+    # summary
+    print(f"Average {measure}_a: {avg_score_a:.2f}")
+    print(f"Average {measure}_b: {avg_score_b:.2f}")
+    print(f"Is {measure}_a always greater than {measure}_b? {'Yes' if always_greater else 'No'}")
+    print(f"Percentage of rows where {measure}_a > {measure}_b: {percentage_greater:.2f}%")
 
-    # Plotting distributions of scores
+    # plot
     plt.figure(figsize=(12, 6))
-
-    # Plotting histogram for score_a
-    plt.hist(df['score_a'], bins=30, alpha=0.5, color='blue', label='score_a')
-
-    # Plotting histogram for score_b
-    plt.hist(df['score_b'], bins=30, alpha=0.5, color='red', label='score_b')
-
-    plt.title('Distribution of Specificity Scores')
-    plt.xlabel('Specificity Score')
-    plt.ylabel('Count')  # Or use 'Frequency'
+    plt.hist(df[measure + '_a'], bins=30, alpha=0.5, color='blue', label=f'{measure}_a')
+    plt.hist(df[measure + '_b'], bins=30, alpha=0.5, color='red', label=f'{measure}_b')
+    plt.title(f'Distribution of {measure} Scores')
+    plt.xlabel(f'{measure} Score')
+    plt.ylabel('Count') 
     plt.legend()
 
-    plt.savefig('plots/distribution_ab6.png', dpi=300)  
+    plt.savefig(f'epoch2/_norm_distribution_{measure}.png', dpi=300)  
     plt.close()
 
-
-    # Plotting a paired scatter plot
+    # paired scatter plot 
     plt.figure(figsize=(8, 8))
-    plt.scatter(df['score_a'], df['score_b'], alpha=0.5)
-    plt.plot([0, 1], [0, 1], 'r--')  # Identity line
-    plt.xlabel('score_a')
-    plt.ylabel('score_b')
-    plt.title('Paired Specificity Scores')
-
-    plt.savefig('plots/paired_ab6.png', dpi=300)  
+    plt.scatter(df[measure + '_a'], df[measure + '_b'], alpha=0.5)
+    plt.plot([0, 1], [0, 1], 'r--')  
+    plt.xlabel(f'{measure}_a')
+    plt.ylabel(f'{measure}_b')
+    plt.title(f'Paired {measure} Scores')
+    plt.savefig(f'epoch2/paired_{measure}_ab.png', dpi=300)  
     plt.close()
 
-    # Paired t-test
-    t_stat, p_val = ttest_rel(df['score_a'], df['score_b'])
-    print(f"Paired t-test: t-statistic = {t_stat:.4f}, p-value = {p_val:.4f}")
+    # paired t-test 
+    t_stat, p_val = ttest_rel(df[measure + "_a"], df[measure + "_b"])
+    print(f"Paired t-test for {measure}: t-statistic = {t_stat:.4f}, p-value = {p_val:.4f}")
 
-    # Wilcoxon signed-rank test (non-parametric)
-    w_stat, p_val_wilcoxon = wilcoxon(df['score_a'], df['score_b'])
-    print(f"Wilcoxon signed-rank test: statistic = {w_stat:.4f}, p-value = {p_val_wilcoxon:.4f}")
+    # Wilcoxon signed-rank test
+    w_stat, p_val_wilcoxon = wilcoxon(df[measure + "_a"], df[measure + "_b"])
+    print(f"Wilcoxon signed-rank test for {measure}: statistic = {w_stat:.4f}, p-value = {p_val_wilcoxon:.4f}")
 
 def plot_difference_density(input_csv):
     df = pd.read_csv(input_csv)
-
-    # Calculate the difference between score_a and score_b
     df['difference'] = df['score_a'] - df['score_b']
-
-    # Extract differences for density estimation
     differences = df['difference'].dropna()
-
-    # Create KDE using scipy
     kde = gaussian_kde(differences, bw_method='scott')
     x = np.linspace(differences.min() - 0.1, differences.max() + 0.1, 1000)
     kde_values = kde.evaluate(x)
-
-    plt.figure(figsize=(12, 6))
-
-    # Plot histogram of differences
     plt.hist(differences, bins=30, density=True, alpha=0.5, color='purple', edgecolor='black', label='Histogram')
-
-    # Plot KDE line
     plt.plot(x, kde_values, color='green', alpha=0.7, label='KDE')
-
     plt.title('Density Plot of Differences between score_a and score_b')
     plt.xlabel('Difference (score_a - score_b)')
     plt.ylabel('Density')
     plt.legend()
     plt.grid(True)
-    
-    plt.savefig('plots/difference_density6.png', dpi=300)
+    plt.savefig('epoch2/difference_density.png', dpi=300)
     plt.close()
 
 
@@ -217,22 +222,18 @@ def inspect_outliers(input_csv):
     df = pd.read_csv(input_csv)
     pd.set_option('display.max_columns', None) 
 
-    # Print basic statistics to identify potential outliers
     print("Basic statistics for score_a:")
     print(df['score_a'].describe())
 
-    # Define a threshold for outlier detection (e.g., values close to 0)
+    # a threshold for outlier detection (manually chosen)
     threshold = 0.01
     outliers = df[df['score_a'] < threshold]
-
-    # Print outliers for inspection
     print("\nOutliers in score_a:")
     print(outliers)
 
-    # remove outliers
     df_cleaned = df[df['score_a'] >= threshold]
 
-    print("Basic statistics for score_a withoutthe outlier:")
+    print("Basic statistics for score_a without outliers:")
     print(df_cleaned['score_a'].describe())
 
     df_cleaned.to_csv(input_csv, index=False)
@@ -245,31 +246,63 @@ def wtf(input_csv):
     '''
     df = pd.read_csv(input_csv)
     pd.set_option('display.max_columns', None) 
-    
-    # Calculate the difference between score_b and score_a
     df['difference'] = df['score_b'] - df['score_a']
-    
-    # Filter out rows where score_b is higher than score_a
     df_higher_b = df[df['difference'] > 0]
-    
-    # Sort by the difference in descending order to get the top differences
     df_higher_b_sorted = df_higher_b.sort_values(by='difference', ascending=False)
-    
-    # Print the top 5 rows
     print("Top 5 instances where score_b is higher than score_a:")
     return df_higher_b_sorted.head(5).iloc[:, 0].tolist()
 
+def add_title(input_csv1, input_csv2, output_csv):
+    """
+    Adds title of articles, difference between score_a and score_b,
+    more_specific binary value, annotatotor_id and anotator_choice 
+    columns to the dataframe.
+
+    Filters out data points where difference in scores is <= 0.1
+    """
+    df1 = pd.read_csv(input_csv1)
+    df2 = pd.read_csv(input_csv2)
+
+    # add columns
+    title = df1['title'].copy()
+    df2['title'] = title
+    df2 = df2[['id', 'title','summary_a','score_a','summary_b','score_b']]
+    df2['difference'] = round(df2['score_a'] - df2['score_b'], 2)
+    df2['more_specific'] = df2.apply(lambda row: 0 if row['score_a'] > row['score_b'] else 1, axis=1)
+    df2['annotator_id'] = np.nan
+    df2['annotator_choice'] = np.nan
+
+    # filter out summaries with small difference
+    df2 = df2[abs(df2['difference']) >= 0.1]
+    df2 = df2.sample(frac=1)
+    df2.to_csv(output_csv)
+
+def calculate_average_text_length(csv_file_path):
+    df = pd.read_csv(csv_file_path)
+    if 'text' not in df.columns:
+        raise ValueError("The CSV file does not contain a 'text' column.")
+    df['text_length'] = df['text'].apply(lambda x: len(x.split()))
+    average_length = df['text_length'].mean()
+    return average_length
+
 if __name__ == "__main__":
-    # files
+    wiki = 'human_evaluation\wikihow100.csv'
+    # original mode, 5 epochs
     file1 = 'human_evaluation/generated_summaries_llama3.1.csv'
     file2 = 'human_evaluation/generated_summaries_llama3.1_2.csv'
     file3 = 'human_evaluation/generated_summaries_llama3.1_3.csv'
     file4 = 'human_evaluation/generated_summaries_llama3.1_4.csv'
     file5 = 'human_evaluation/generated_summaries_gemma2.csv'
 
-    # sanme context, 2 epochs
+    # same context, 2 epochs
     file6 = 'human_evaluation/generated_summaries_llama3.1_4_sc.csv'
+    # original model, 2 epochs
+    file7 = 'human_evaluation/generated_summaries_llama3.1_4_2epochs.csv'
 
-    # process_csv(file5)
-    #analyze_scores(file6)
-    plot_difference_density(file6)
+    out = 'human_evaluation/generated_summaries_llama3.1_4_2epochs_norm.csv'
+    process_csv(file7, out)
+    analyze_scores(out, measure='std_dev')
+    plot_difference_density(file7)
+    
+
+    

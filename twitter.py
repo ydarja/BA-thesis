@@ -57,22 +57,19 @@ def get_specificity_score(sentence, model, tokenizer, max_length=128):
 
 
     input_ids, attention_mask = tokenize_sentence(sentence, tokenizer, max_length)
-    input_ids = input_ids.unsqueeze(0).to(device)  # Add batch dimension and move to device
-    attention_mask = attention_mask.unsqueeze(0).to(device)  # Add batch dimension and move to device
+    input_ids = input_ids.unsqueeze(0).to(device)  
+    attention_mask = attention_mask.unsqueeze(0).to(device) 
 
     with torch.no_grad():
         logits, _ = model(input_ids1=input_ids, attention_mask1=attention_mask,
                           input_ids2=input_ids, attention_mask2=attention_mask)
         logits = logits.squeeze().cpu().numpy()
 
-    scaler = MinMaxScaler()
-    specificity_score = scaler.fit_transform(logits.reshape(-1, 1)).flatten()
+    return logits
 
-    return specificity_score[0]
+def process_tweets(input_csv, model_path='models/model5', max_length=128):
 
-def process_tweets(input_csv, model_path='models/model3', max_length=128):
-
-    df = pd.read_csv(input_csv, sep='\t')
+    df = pd.read_csv(input_csv, sep=',')
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
@@ -80,15 +77,22 @@ def process_tweets(input_csv, model_path='models/model3', max_length=128):
     optimizer = torch.optim.Adam(model.parameters())
     model, _, _ = load_model(model, optimizer, model_path, device)
     model.eval()
-    
+
+    logits_list = []
     df['My_score'] = np.nan
     for idx, row in df.iterrows():
         tweet = row['Cleaned_tweet']
         if not tweet or pd.isna(tweet):
             continue
+        
+        logit_score = get_specificity_score(tweet, model, tokenizer, max_length)
+        logits_list.append(logit_score)
+        df.at[idx, 'Logits'] = logit_score.item()
 
-        scores = get_specificity_score(tweet, model, tokenizer, max_length)
-        df.at[idx, 'My_score'] = round(scores, 2)
+    
+    scaler = MinMaxScaler()
+    df['My_score'] = round(scaler.fit_transform(df[['Logits']]))
+
 
     df.to_csv(input_csv, index=False)
     print("Scores have been updated and saved.")
@@ -111,65 +115,65 @@ def analyze_logits(csv_file):
     plt.xlabel('Logits')
     plt.ylabel('Frequency')
     plt.grid(True)
-    plt.savefig('plots/logits_distribution.png', dpi=300)  
+    plt.savefig('epoch2/logits_distribution2.png', dpi=300)  
     plt.close()
 
 def analyze_scores(csv_file):
     df = pd.read_csv(csv_file, sep=',')
-    # Calculate and print statistics
+    # calculate and print statistics of raw scores
     print("\nMy Score Statistics:")
     print(f"Max: {df['My_score'].max()}")
     print(f"Min: {df['My_score'].min()}")
     print(f"Mean: {df['My_score'].mean()}")
     print(f"Standard Deviation: {df['My_score'].std()}")
 
-    # Plot the distribution of logits
     plt.figure(figsize=(12, 6))
     plt.hist(df['My_score'], bins=50, edgecolor='k', alpha=0.7)
     plt.title('Distribution of my Scores')
     plt.xlabel('Scores')
     plt.ylabel('Frequency')
     plt.grid(True)
-    plt.savefig('plots/my_score_distribution.png', dpi=300)  
+    plt.savefig('epoch2/my_score_distribution2.png', dpi=300)  
     plt.close()
 
 def analyze_twitter_scores(csv_file):
     df = pd.read_csv(csv_file, sep=',')
-    # Calculate and print statistics
+    # calculate and print statistics of normalized scores
     print("\nNormalized Twitter Score Statistics:")
     print(f"Max: {df['Normalized_score'].max()}")
     print(f"Min: {df['Normalized_score'].min()}")
     print(f"Mean: {df['Normalized_score'].mean()}")
     print(f"Standard Deviation: {df['Normalized_score'].std()}")
 
-    # Plot the distribution of logits
     plt.figure(figsize=(12, 6))
     plt.hist(df['Normalized_score'], bins=50, edgecolor='k', alpha=0.7)
     plt.title('Distribution of Normalzied Twitter Scores')
     plt.xlabel('Scores')
     plt.ylabel('Frequency')
     plt.grid(True)
-    plt.savefig('plots/norm_twitter_score_distribution.png', dpi=300)  
+    plt.savefig('epoch2/norm_twitter_score_distribution2.png', dpi=300)  
     plt.close()
 
 def analyze_correlation(input_csv):
-
     df = pd.read_csv(input_csv, sep=',')
-    correlation = df['Logits'].corr(df['Score'])
-    print(f"Correlation between My Logits and raw Twitter Scores: {correlation:.2f}")
+    correlation = df['My_score'].corr(df['Normalized_score'])
+    print(f"Correlation between My Scores andTwitter Scores: {correlation:.2f}")
     
     plt.figure(figsize=(8, 8))
-    plt.scatter(df['Logits'], df['Score'], alpha=0.5)
+    plt.scatter(df['My_score'], df['Normalized_score'], alpha=0.5)
     plt.xlabel('My Score')
-    plt.ylabel('Twitter Score')
-    plt.savefig('plots/paired_twitter_raw.png', dpi=300)  
+    plt.ylabel(' Twitter Score')
+    plt.savefig('epoch2/paired_twitter.png', dpi=300)  
     plt.close()
 
 
 
 if __name__ == "__main__":
-    data = 'data/cleaned_data_test.tsv'
-    #preprocess_tweets(data)
-    #normalize_twitter_scores(data)
-    #process_tweets(data)
+    data = 'data/cleaned_data_test3.tsv'
+    preprocess_tweets(data)
+    normalize_twitter_scores(data)
+    process_tweets(data)
+
+    analyze_logits(data)
+    analyze_scores(data)
     analyze_correlation(data)

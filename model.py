@@ -6,7 +6,7 @@ import pandas as pd
 import time
 from data_manager import load_data_from_csv
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
-
+import matplotlib.pyplot as plt
 
 class SynsetPairDataset(Dataset):
     def __init__(self, dataframe, tokenizer, max_length=128):
@@ -172,11 +172,11 @@ if __name__ == "__main__":
     # device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Initialize tokenizer and model
+    # initialize tokenizer and model
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     model = SpecificityModel().to(device)
     criterion = nn.BCELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-6)
 
     
     # load data and create data loaders
@@ -191,22 +191,35 @@ if __name__ == "__main__":
     val_loader = DataLoader(val_dataset, batch_size=4)
     test_loader = DataLoader(test_dataset, batch_size=4)
 
-    
+    train_losses = []
+    val_losses = []
+
     # train the model
-    num_epochs = 5
+    num_epochs = 3
     for epoch in range(num_epochs):
         train_loss = train(model, train_loader, criterion, optimizer)
         val_loss = evaluate(model, val_loader, criterion)
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
         print("Epoch ", epoch + 1, "/", num_epochs, " , Train Loss: ", train_loss, " Validation Loss: ", val_loss)
 
-        # Save the model after each epoch
-        save_model(model, optimizer, epoch+1, 'models/model3')
+        # save the model after each epoch
+        save_model(model, optimizer, epoch+1, 'models/model6')
     
-    # Initialize the model and optimizer
     model = SpecificityModel().to(device)
     optimizer = torch.optim.Adam(model.parameters())
 
-    # Load the saved model
-    model, optimizer, epoch = load_model(model, optimizer, 'models/model3', device)
-    # Test the model
+    # load and test the saved model
+    model, optimizer, epoch = load_model(model, optimizer, 'models/model6', device)
     test_model(model, test_loader, device)
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(1, num_epochs + 1), train_losses, label='Train Loss', marker='o')
+    plt.plot(range(1, num_epochs + 1), val_losses, label='Validation Loss', marker='o')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('plots/model6_loss.png', dpi=300)
+    plt.close()
